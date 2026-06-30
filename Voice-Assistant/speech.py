@@ -1,38 +1,59 @@
+import asyncio
+import edge_tts
+import uuid
+import os
+import subprocess
 import speech_recognition as sr
-import pyttsx3
 
-# Initialize text-to-speech engine
-engine = pyttsx3.init()
-
-# Configure voice properties
-engine.setProperty("rate", 170)      # Speaking speed
-engine.setProperty("volume", 1.0)    # Volume (0.0 to 1.0)
+VOICE = "en-US-AriaNeural"
 
 
 def speak(text):
-    """
-    Convert text to speech.
-    """
     print(f"Assistant: {text}")
-    engine.say(text)
-    engine.runAndWait()
+
+    filename = f"speech_{uuid.uuid4().hex}.mp3"
+
+    async def generate():
+        communicate = edge_tts.Communicate(text, VOICE)
+        await communicate.save(filename)
+
+    asyncio.run(generate())
+
+    subprocess.run(["mpg123", filename],
+                   stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
+
+    if os.path.exists(filename):
+        os.remove(filename)
 
 
 def listen():
     """
-    Listen to the user's voice and convert it to text.
+    Listen to user voice and convert it to text.
     """
     recognizer = sr.Recognizer()
 
     with sr.Microphone() as source:
         print("Listening...")
 
-        recognizer.adjust_for_ambient_noise(source, duration=1)
+        # Adjust for background noise
+        recognizer.dynamic_energy_threshold = True
+        recognizer.pause_threshold = 1.0
+        recognizer.non_speaking_duration = 0.5
+
+        recognizer.adjust_for_ambient_noise(source, duration=2)
 
         try:
-            audio = recognizer.listen(source, timeout=5)
+            audio = recognizer.listen(
+                source,
+                timeout=5,
+                phrase_time_limit=8
+            )
 
-            command = recognizer.recognize_google(audio)
+            command = recognizer.recognize_google(
+                audio,
+                language="en-IN"
+            )
 
             print(f"You: {command}")
 

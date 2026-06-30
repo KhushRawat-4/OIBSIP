@@ -1,5 +1,6 @@
 # Virtual environment
 venv/
+.venv/
 
 # Python cache
 __pycache__/
@@ -11,3 +12,6 @@ __pycache__/
 
 # Logs
 *.log
+
+# Generated speech files
+speech_*.mp3
