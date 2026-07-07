@@ -1,6 +1,8 @@
+import threading
 import tkinter as tk
+
 from assistant import process_command
-from speech import speak, listen
+from speech import listen
 
 
 class VoiceAssistantGUI:
@@ -20,17 +22,27 @@ class VoiceAssistantGUI:
         )
         self.chat_box.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
-        # Input box
+        # Input
         self.entry = tk.Entry(root, font=("Arial", 12))
         self.entry.pack(padx=10, pady=5, fill=tk.X)
+        self.entry.bind("<Return>", lambda event: self.send_command())
 
         # Buttons
         btn_frame = tk.Frame(root, bg="#1e1e1e")
         btn_frame.pack(pady=5)
 
-        tk.Button(btn_frame, text="Send", command=self.send_command).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="Speak", command=self.voice_input).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="Clear", command=self.clear_chat).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Send",
+                  command=self.send_command).pack(side=tk.LEFT, padx=5)
+
+        self.speak_button = tk.Button(
+            btn_frame,
+            text="Speak",
+            command=self.voice_input
+        )
+        self.speak_button.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(btn_frame, text="Clear",
+                  command=self.clear_chat).pack(side=tk.LEFT, padx=5)
 
         self.print_message("Assistant is ready. Type or speak a command.")
 
@@ -44,7 +56,7 @@ class VoiceAssistantGUI:
 
         if command:
             self.print_message(f"You: {command}")
-            self.print_message(f"Assistant processing...")
+            self.print_message("Assistant processing...")
 
             result = process_command(command)
 
@@ -52,20 +64,35 @@ class VoiceAssistantGUI:
                 self.print_message("Assistant stopped.")
 
     def voice_input(self):
+        self.speak_button.config(state="disabled")
         self.print_message("Listening...")
 
+        threading.Thread(
+            target=self.listen_in_background,
+            daemon=True
+        ).start()
+
+    def listen_in_background(self):
         command = listen()
 
+        self.root.after(
+            0,
+            lambda: self.process_voice_command(command)
+        )
+
+    def process_voice_command(self, command):
         self.print_message(f"You (voice): {command}")
         self.print_message("Assistant processing...")
 
         result = process_command(command)
 
+        self.speak_button.config(state="normal")
+
         if result is False:
             self.print_message("Assistant stopped.")
 
     def clear_chat(self):
-        self.chat_box.delete(1.0, tk.END)
+        self.chat_box.delete("1.0", tk.END)
 
 
 if __name__ == "__main__":
